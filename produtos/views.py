@@ -3,6 +3,7 @@ import stripe
 from django.conf import settings
 from .models import Produto
 from django.http import JsonResponse, HttpResponse
+from django.views.decorators.csrf import csrf_exempt
 
 stripe.api_key = settings.STRIPE_SECRET_KEY
 
@@ -42,9 +43,33 @@ def home(request):
 
     return render(request, 'home.html',{'produto': produto, 'STRIPE_PUBLIC_KEY': settings.STRIPE_PUBLIC_KEY})
 
-
 def sucesso(request):
     return HttpResponse('Sucesso!')
 
 def erro(request):
     return HttpResponse('Erro!')
+
+@csrf_exempt
+def stripe_webhook(request):
+    payload = request.body
+    sig_header = request.META['HTTP_STRIPE_SIGNATURE']
+    event = None
+    endpoint_secret = settings.STRIPE_WEBHOOK_SECRET
+
+    try:
+        event = stripe.Webhook.construct_event(
+        payload, sig_header, endpoint_secret
+        )
+    except ValueError as e:
+        # Invalid payload
+        return HttpResponse(status=400)
+    except stripe.error.SignatureVerificationError as e:
+        # Invalid signature
+        return HttpResponse(status=400)
+    
+    if event['type'] == 'checkout.session.completed':
+        session = event['data']['object']
+        
+        print('Aprovada')
+
+    return HttpResponse(status=200)
