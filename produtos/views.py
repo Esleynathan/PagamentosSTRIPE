@@ -7,37 +7,18 @@ from django.views.decorators.csrf import csrf_exempt
 
 stripe.api_key = settings.STRIPE_SECRET_KEY
 
-def create_checkout_session(request, id):
-    produto = Produto.objects.get(id = id)
-    YOUR_DOMAIN = "http://127.0.0.1:8000"
-    checkout_session = stripe.checkout.Session.create(
-        line_items=[
-            {
-                'price_data': {
-                    'currency': 'BRL',
-                    'unit_amount': int(produto.preco),
-                    'product_data': {
-                    'name': produto.nome
-                    }
-
-                },
-                'quantity': 1,
-            },
-        ],
-        payment_method_types=[
-            'card',
-            'boleto',
-        ],
-        metadata={
-            'id_produto': produto.id,
-            'nome': 'Ésley Nathan',
-            'endereco': 'Rua Dalia',
-        },
-        mode='payment',
-        success_url=YOUR_DOMAIN + '/sucesso',
-        cancel_url=YOUR_DOMAIN + '/erro',
-    )
-    return JsonResponse({'id': checkout_session.id})
+@csrf_exempt
+def create_payment(request, id):
+    produto = Produto.objects.get (id = id)
+    
+    # Create a PaymentIntent with the order amount and currency
+    intent = stripe.PaymentIntent.create(
+        amount=int(produto.preco),
+        currency='BRL',
+        )
+    return JsonResponse({
+        'clientSecret': intent['client_secret']
+         })
 
 
 def home(request):
