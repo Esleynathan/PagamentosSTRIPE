@@ -162,6 +162,7 @@
         </div>
         
         <form id="payment-form">
+          <input type="email" id="email" placeholder="Email...">
           <div id="link-authentication-element">
             <!--Stripe.js injects the Link Authentication Element-->
           </div>
@@ -184,55 +185,47 @@
 
   let elements;
 
-  initialize();
-  checkStatus();
-
   document
     .querySelector("#payment-form")
     .addEventListener("submit", handleSubmit);
 
-  let emailAddress = '';
-  // Fetches a payment intent and captures the client secret
-  async function initialize() {
-    const response = await fetch("{% url 'create-payment-intent' produto.id %}", {
+
+  elements = stripe.elements();
+
+  const paymentElement = elements.create("card");
+  paymentElement.mount("#payment-element");
+ 
+  var form = document.getElementById('payment-form')
+  form.addEventListener('submit', function(event){
+    setLoading(true)
+    event.preventDefault()
+
+    const response = fetch("{% url 'create-payment-intent' produto.id %}", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-    });
-    const { clientSecret } = await response.json();
+      body: JSON.stringfy({email: document.getElementById('email').value})
+    })
+      .then(function(result){
+        return result.json()
+      })
+      .then(function(data){
+        stripe.confirmPayment(data.clientSecret,{
+          payment_method: {
+            card: paymentElement
+          }
+        })
+          .then(function(result){
+            setLoading(false)
 
-    const appearance = {
-      theme: 'stripe',
-    };
+          })
+      })
 
-    elements = stripe.elements({ appearance, clientSecret });
-
-    const linkAuthenticationElement = elements.create("linkAuthentication");
-    linkAuthenticationElement.mount("#link-authentication-element");
-
-    linkAuthenticationElement.on('change', (event) => {
-      emailAddress = event.value.email;
-    });
-
-    const paymentElementOptions = {
-      layout: "tabs",
-    };
-
-    const paymentElement = elements.create("payment", paymentElementOptions);
-    paymentElement.mount("#payment-element");
-  }
+  })      
 
   async function handleSubmit(e) {
     e.preventDefault();
     setLoading(true);
-
-    const { error } = await stripe.confirmPayment({
-      elements,
-      confirmParams: {
-        // Make sure to change this to your payment completion page
-        return_url: "http://127.0.0.1:8000" + "{% url 'home' %}",
-        receipt_email: emailAddress,
-      },
-    });
+    
 
     // This point will only be reached if there is an immediate error when
     // confirming the payment. Otherwise, your customer will be redirected to
@@ -248,34 +241,7 @@
     setLoading(false);
   }
 
-  // Fetches the payment intent status after payment submission
-  async function checkStatus() {
-    const clientSecret = new URLSearchParams(window.location.search).get(
-      "payment_intent_client_secret"
-    );
-
-    if (!clientSecret) {
-      return;
-    }
-
-    const { paymentIntent } = await stripe.retrievePaymentIntent(clientSecret);
-
-    switch (paymentIntent.status) {
-      case "succeeded":
-        showMessage("Payment succeeded!");
-        break;
-      case "processing":
-        showMessage("Your payment is processing.");
-        break;
-      case "requires_payment_method":
-        showMessage("Your payment was not successful, please try again.");
-        break;
-      default:
-        showMessage("Something went wrong.");
-        break;
-    }
-  }
-
+  
   // ------- UI helpers -------
 
   function showMessage(messageText) {
