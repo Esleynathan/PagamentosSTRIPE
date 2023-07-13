@@ -10,6 +10,7 @@ stripe.api_key = settings.STRIPE_SECRET_KEY
 @csrf_exempt
 def create_payment(request, id):
     produto = Produto.objects.get (id = id)
+    print(request.body)
     
     # Create a PaymentIntent with the order amount and currency
     intent = stripe.PaymentIntent.create(
