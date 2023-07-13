@@ -216,6 +216,8 @@
               showMessage('Ocorreu um erro.')
             }else{
               showMessage('Compra finalizada com sucesso, verifique seu e-mail.')
+              paymentElement.clear()
+              document.getElementById('email').value = ""
             }
 
           })

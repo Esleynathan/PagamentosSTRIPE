@@ -4,18 +4,25 @@ from django.conf import settings
 from .models import Produto, Pedido
 from django.http import JsonResponse, HttpResponse
 from django.views.decorators.csrf import csrf_exempt
+import json
 
 stripe.api_key = settings.STRIPE_SECRET_KEY
 
 @csrf_exempt
 def create_payment(request, id):
     produto = Produto.objects.get (id = id)
-    print(request.body)
+    email = json.loads(request.body)['email']
+
+    print(email)
     
     # Create a PaymentIntent with the order amount and currency
     intent = stripe.PaymentIntent.create(
         amount=int(produto.preco),
         currency='BRL',
+        metadata={
+            'produto_id': produto.id,
+            'email': email
+        }
         )
     return JsonResponse({
         'clientSecret': intent['client_secret']
@@ -51,16 +58,10 @@ def stripe_webhook(request):
         # Invalid signature
         return HttpResponse(status=400)
     
-    if event['type'] == 'checkout.session.completed':
+    print(event)
+    
+    if event['type'] == 'charge.succeeded':
         session = event['data']['object']
-        pedido = Pedido(produto_id= session['metadata']['id_produto'],
-                        email=session['customer_details']['email'],
-                        nome=session['metadata']['nome'],
-                        endereco=session['metadata']['endereco'],
-                        status=event['type'],
-                        )
-        pedido.save()
-
-        print('Aprovada')
+        print(f"O dono do E-mail {session['metadata']['email']} comprou o produto de id {session['metadata']['produto_id']}")
 
     return HttpResponse(status=200)
