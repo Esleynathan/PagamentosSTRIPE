@@ -62,6 +62,13 @@ def stripe_webhook(request):
     
     if event['type'] == 'charge.succeeded':
         session = event['data']['object']
-        print(f"O dono do E-mail {session['metadata']['email']} comprou o produto de id {session['metadata']['produto_id']}")
+        x = Pedido(produto_id = session['metadata']['produto_id'],  
+                   payment_intent = session['payment_intent'],
+                   email = session['metadata']['email'],
+                   valor_pago = session['amount'],
+                   status = session['status'])
+        
+        x.save()
+        
 
     return HttpResponse(status=200)
